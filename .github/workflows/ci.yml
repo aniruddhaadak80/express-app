@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  start-server:
+    name: Start the Express server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start server with `npm start` and probe port 1234
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:1234/ || true)
+            if [ "$code" != "000" ]; then
+              echo "Server is reachable on http://127.0.0.1:1234/ (HTTP $code)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Server never became reachable on port 1234"
+          exit 1
